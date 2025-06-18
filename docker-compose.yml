@@ -1,0 +1,12 @@
+version: "3.8"
+services:
+  map-api:
+    build: .
+    ports:
+      - "5045:5045"
+    volumes:
+      - ./src:/app/src
+      - ./src/archives:/app/src/archives
+    environment:
+      - PORT=5045
+      - STORAGE_BASE_PATH=/app/src/archives/maps
