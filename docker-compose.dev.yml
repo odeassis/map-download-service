@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  map-api-dev:
+    build:
+      context: .
+      target: builder
+    container_name: map-download-api-dev
+    ports:
+      - "5045:5045"
+      - "9229:9229" # Debug port
+    environment:
+      - NODE_ENV=development
+      - PORT=5045
+      - STORAGE_BASE_PATH=/app/src/archives/maps
+    volumes:
+      # Mount source code for development
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
+      # Mount map files directory
+      - ./src/archives:/app/src/archives
+    command: ["npm", "run", "dev"]
+    restart: unless-stopped
+    networks:
+      - app-network-dev
+
+networks:
+  app-network-dev:
+    driver: bridge
