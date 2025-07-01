@@ -89,4 +89,43 @@ export class MapController {
             });
         }
     };
+
+    public getLatestMapVersion = async (req: Request, res: Response): Promise<void> => {
+        const requestId = req.requestId;
+
+        logger.info({
+            requestId,
+            action: 'get_latest_version_start'
+        }, 'Retrieving latest map version');
+
+        try {
+            const latestMetadata = await this.mapService.getLatestMapVersion(requestId);
+
+            logger.info({
+                requestId,
+                mapId: latestMetadata.mapId,
+                version: latestMetadata.version,
+                action: 'get_latest_version_success'
+            }, 'Latest map version retrieved successfully');
+
+            res.status(200).json({
+                mapId: latestMetadata.mapId,
+                version: latestMetadata.version,
+                metadata: latestMetadata,
+                requestId
+            });
+        } catch (error) {
+            logger.error({
+                requestId,
+                action: 'get_latest_version_error',
+                error: error instanceof Error ? error.message : 'Unknown error'
+            }, 'Failed to retrieve latest map version');
+
+            res.status(500).json({
+                error: 'Failed to retrieve latest map version',
+                requestId
+            });
+        }
+    };
 }
+
