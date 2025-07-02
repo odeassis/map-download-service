@@ -26,3 +26,5 @@ src/tmp/maps/
 npm-debug.log*
 
 desktop.ini
+
+src/archives/maps/metadata/*.json
