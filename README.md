@@ -1,94 +1,113 @@
-# Map Download API
+# API de Download de Mapas
 
-A simple Node.js service for downloading map files and retrieving map metadata. This service uses structured logging with request IDs for tracking and monitoring.
+Um serviço Node.js para gerenciar arquivos de mapas e recuperar metadados de mapas. Este serviço oferece suporte para upload, download e gerenciamento de mapas no formato MBTiles.
 
-## Features
+## Instalação
 
-- **Structured Logging**: Uses Pino for structured logging with request IDs
-- **Two Simple Routes**: Download maps and get map metadata
-- **Error Handling**: Proper error handling with structured logging
-- **TypeScript**: Full TypeScript support with proper type definitions
+1. Clone o repositório:
 
-## Installation
-
-1. Clone the repository:
-   ```
+   ```sh
    git clone <repository-url>
    ```
-2. Navigate to the project directory:
-   ```
+
+2. Navegue até o diretório do projeto:
+
+   ```sh
    cd map-download-api
    ```
-3. Install dependencies:
-   ```
+
+3. Instale as dependências:
+   ```sh
    npm install
    ```
 
-## Usage
+## Uso
 
-To start the development server:
+Para iniciar o servidor de desenvolvimento:
 
-```
+```sh
 npm run dev
 ```
 
-To build and start production server:
+Para compilar e iniciar o servidor de produção:
+
+```sh
+npm run build
+npm start
+```
+
+```sh
+npm run dev
+```
+
+Para compilar e iniciar o servidor de produção:
+
+```sh
+npm run build
+npm start
+```
+
+A API estará disponível em `http://localhost:5045` (ou na PORTA configurada).
+
+## Pontos de extremidade da API
+
+### 1. Baixar o mapa
 
 ```
 npm run build
 npm start
 ```
 
-The API will be available at `http://localhost:5045` (or your configured PORT).
+A API estará disponível em `http://localhost:5045` (ou na PORTA configurada).
 
-## API Endpoints
+## Pontos de extremidade da API
 
-### 1. Download Map
+### 1. Baixar o mapa
 
-- **Endpoint**: `GET /map/:map_id/download`
-- **Description**: Downloads the map file corresponding to the provided map ID
-- **Parameters**:
-  - `map_id`: The unique identifier for the map
-- **Response**: Returns the map file as `application/octet-stream`
-- **Headers**:
-  - `Content-Disposition`: attachment; filename=map-{map_id}.mbtiles
-  - `X-Request-ID`: Unique request identifier for tracking
+- **Ponto de extremidade**: `GET /map/:map_id/download`
+- **Descrição**: Baixa o arquivo de mapa correspondente ao ID do mapa fornecido
+- **Parâmetros**:
+- `map_id`: O identificador exclusivo do mapa
+- **Resposta**: Retorna o arquivo de mapa como `application/octet-stream`
+- **Cabeçalhos**:
+- `Content-Disposition`: attachment; filename=map-{map_id}.mbtiles
+- `X-Request-ID`: Identificador exclusivo de solicitação para rastreamento
 
-### 2. Get Map Metadata
+### 2. Obter metadados do mapa
 
 - **Endpoint**: `GET /map/:map_id/metadata`
-- **Description**: Returns metadata information for the specified map ID
-- **Parameters**:
-  - `map_id`: The unique identifier for the map
-- **Response**: JSON object containing map metadata
-- **Headers**:
-  - `X-Request-ID`: Unique request identifier for tracking
+- **Description**: Retorna informações de metadados para o ID do mapa especificado
+- **Parâmetros**:
+- `map_id`: O identificador exclusivo do mapa
+- **Resposta**: Objeto JSON contendo metadados do mapa
+- **Cabeçalhos**:
+- `X-Request-ID`: Identificador exclusivo de solicitação para rastreamento
 
-## Environment Variables
+## Variáveis ​​de ambiente
 
-- `PORT`: Server port (default: 5045)
-- `STORAGE_BASE_PATH`: Base path for map storage (default: src/archives/maps)
+- `PORT`: Porta do servidor (padrão: 5045)
+- `STORAGE_BASE_PATH`: Caminho base para armazenamento de mapas (padrão: src/archives/maps)
 
-## Map Storage Structure
+## Estrutura de armazenamento do mapa
 
 ```
 archives/
-  maps/
-    {map_id}.mbtiles          # Map tile files
-    metadata/
-      {map_id}.json          # Map metadata files
+maps/
+{map_id}.mbtiles # Arquivos de blocos de mapa
+metadata/
+{map_id}.json # Arquivos de metadados do mapa
 ```
 
-## Logging
+## Registro
 
-All requests are logged with structured logging including:
+Todas as solicitações são registradas com registro estruturado, incluindo:
 
-- Request ID for tracing
-- Request method and URL
-- User agent
-- Action-specific logging (download start/progress/completion, metadata retrieval)
-- Error logging with detailed context
+- ID da solicitação para rastreamento
+- Método e URL da solicitação
+- Agente do usuário
+- Registro específico da ação (início/progresso/conclusão do download, recuperação de metadados)
+- Registro de erros com contexto detalhado
 
-## Contributing
+## Contribuição
 
-Feel free to submit issues or pull requests for improvements.
+Sinta-se à vontade para enviar problemas ou solicitações de melhorias.

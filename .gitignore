@@ -28,3 +28,4 @@ npm-debug.log*
 desktop.ini
 
 src/archives/maps/metadata/*.json
+src/archives/maps/*.mbtiles

@@ -1,4 +1,4 @@
-import * as express from 'express';
+import * as express from "express";
 
 declare global {
   namespace Express {
@@ -8,4 +8,10 @@ declare global {
   }
 }
 
-export { };
+export interface UploadMapRequest {
+  name?: string;
+  description?: string;
+  version?: string;
+}
+
+export {};
