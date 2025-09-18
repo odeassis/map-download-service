@@ -205,11 +205,11 @@ export class MapController {
    * /map/latest-version:
    *   get:
    *     tags: [Maps]
-   *     summary: Get latest map version
-   *     description: Retrieves the metadata of the most recent map version available
+   *     summary: Get most recently uploaded map
+   *     description: Retrieves the metadata of the most recently uploaded map based on upload timestamp
    *     responses:
    *       200:
-   *         description: Latest map version retrieved successfully
+   *         description: Most recently uploaded map retrieved successfully
    *         content:
    *           application/json:
    *             schema:
@@ -226,9 +226,9 @@ export class MapController {
     logger.info(
       {
         requestId,
-        action: "get_latest_version_start",
+        action: "get_latest_uploaded_start",
       },
-      "Retrieving latest map version"
+      "Retrieving most recently uploaded map"
     );
 
     try {
@@ -241,14 +241,18 @@ export class MapController {
           requestId,
           mapId: latestMetadata.mapId,
           version: latestMetadata.version,
-          action: "get_latest_version_success",
+          uploadTime: latestMetadata.createdAt,
+          mapName: latestMetadata.name,
+          action: "get_latest_uploaded_success",
         },
-        "Latest map version retrieved successfully"
+        `Most recently uploaded map retrieved: ${latestMetadata.name} (${latestMetadata.version})`
       );
 
       res.status(200).json({
         mapId: latestMetadata.mapId,
         version: latestMetadata.version,
+        uploadTime: latestMetadata.createdAt,
+        mapName: latestMetadata.name,
         metadata: latestMetadata,
         requestId,
       });
@@ -256,14 +260,14 @@ export class MapController {
       logger.error(
         {
           requestId,
-          action: "get_latest_version_error",
+          action: "get_latest_uploaded_error",
           error: error instanceof Error ? error.message : "Unknown error",
         },
-        "Failed to retrieve latest map version"
+        "Failed to retrieve most recently uploaded map"
       );
 
       res.status(500).json({
-        error: "Failed to retrieve latest map version",
+        error: "Failed to retrieve most recently uploaded map",
         requestId,
       });
     }

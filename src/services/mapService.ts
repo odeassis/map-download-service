@@ -272,9 +272,9 @@ export class MapService {
         {
           requestId,
           metadataDir,
-          action: "get_latest_version_start",
+          action: "get_latest_uploaded_start",
         },
-        "Starting to find latest map version"
+        "Starting to find most recently uploaded map"
       );
 
       const files = await fs.promises.readdir(metadataDir);
@@ -285,7 +285,7 @@ export class MapService {
       }
 
       let latestMetadata: MapMetadata | null = null;
-      let latestVersion = "";
+      let latestUploadTime: Date | null = null;
 
       for (const file of jsonFiles) {
         const filePath = path.join(metadataDir, file);
@@ -293,13 +293,31 @@ export class MapService {
           const content = await fs.promises.readFile(filePath, "utf-8");
           const metadata: MapMetadata = JSON.parse(content);
 
-          // Compare versions (assuming semantic versioning or simple string comparison)
+          // Parse the createdAt timestamp to find the most recent upload
+          const uploadTime = new Date(metadata.createdAt);
+
+          // Skip if the date is invalid
+          if (isNaN(uploadTime.getTime())) {
+            logger.warn(
+              {
+                requestId,
+                file,
+                createdAt: metadata.createdAt,
+                action: "invalid_date_skipped",
+              },
+              "Invalid createdAt date found, skipping file"
+            );
+            continue;
+          }
+
+          // Compare upload times to find the most recent
           if (
             !latestMetadata ||
-            this.compareVersions(metadata.version, latestVersion) > 0
+            !latestUploadTime ||
+            uploadTime > latestUploadTime
           ) {
             latestMetadata = metadata;
-            latestVersion = metadata.version;
+            latestUploadTime = uploadTime;
           }
         } catch (error) {
           logger.warn(
@@ -313,7 +331,7 @@ export class MapService {
         }
       }
 
-      if (!latestMetadata) {
+      if (!latestMetadata || !latestUploadTime) {
         throw new Error("No valid metadata found");
       }
 
@@ -321,10 +339,18 @@ export class MapService {
         {
           requestId,
           latestMapId: latestMetadata.mapId,
+          latestUploadTime: latestUploadTime.toISOString(),
           latestVersion: latestMetadata.version,
-          action: "get_latest_version_success",
+          mapName: latestMetadata.name,
+          fileSize: latestMetadata.size,
+          fileSizeFormatted: latestMetadata.size
+            ? MetricsCalculator.formatFileSize(latestMetadata.size)
+            : "unknown",
+          action: "get_latest_uploaded_success",
         },
-        "Latest map version found successfully"
+        `Most recently uploaded map found: ${latestMetadata.name} (${
+          latestMetadata.version
+        }) uploaded on ${latestUploadTime.toISOString()}`
       );
 
       return latestMetadata;
@@ -334,9 +360,9 @@ export class MapService {
           requestId,
           metadataDir,
           error: error instanceof Error ? error.message : "Unknown error",
-          action: "get_latest_version_error",
+          action: "get_latest_uploaded_error",
         },
-        "Failed to find latest map version"
+        "Failed to find most recently uploaded map"
       );
       throw error;
     }

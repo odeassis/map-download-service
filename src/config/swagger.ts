@@ -208,6 +208,17 @@ const options: swaggerJsdoc.Options = {
               type: "string",
               example: "1.2.0",
             },
+            uploadTime: {
+              type: "string",
+              format: "date-time",
+              description: "ISO timestamp when the map was uploaded",
+              example: "2025-09-18T10:30:00.000Z",
+            },
+            mapName: {
+              type: "string",
+              description: "Name of the uploaded map",
+              example: "City Navigation Map",
+            },
             metadata: {
               $ref: "#/components/schemas/MapMetadata",
             },
