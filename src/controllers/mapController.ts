@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import path from "path";
 import pino from "pino";
 import { MapService } from "../services/mapService";
+import { MetricsCalculator } from "../utils/metricsCalculator";
 
 const logger = pino({
   level: "info",
@@ -50,14 +51,26 @@ export class MapController {
   public downloadMap = async (req: Request, res: Response): Promise<void> => {
     const { map_id } = req.params;
     const requestId = req.requestId;
+    const controllerStartTime = Date.now();
+
+    // Log client information
+    const clientInfo = {
+      userAgent: req.get("User-Agent"),
+      acceptEncoding: req.get("Accept-Encoding"),
+      contentLength: req.get("Content-Length"),
+      range: req.get("Range"),
+      ifModifiedSince: req.get("If-Modified-Since"),
+      connection: req.get("Connection"),
+    };
 
     logger.info(
       {
         requestId,
         mapId: map_id,
-        action: "download_map_start",
+        clientInfo,
+        action: "download_controller_start",
       },
-      "Starting map download"
+      `Starting download request for map: ${map_id}`
     );
 
     try {
@@ -67,25 +80,47 @@ export class MapController {
         `attachment; filename=map-${map_id}.mbtiles`
       );
 
+      // Add performance headers
+      const streamStartTime = Date.now();
+      res.setHeader("X-Stream-Start-Time", streamStartTime.toString());
+      res.setHeader("X-Request-ID", requestId || "unknown");
+
       await this.mapService.streamMap(map_id, res, requestId);
+
+      const controllerEndTime = Date.now();
+      const totalControllerTime = controllerEndTime - controllerStartTime;
 
       logger.info(
         {
           requestId,
           mapId: map_id,
-          action: "download_map_success",
+          totalControllerTime: `${totalControllerTime}ms`,
+          totalControllerTimeFormatted: MetricsCalculator.formatDuration(
+            totalControllerTime / 1000
+          ),
+          action: "download_controller_success",
         },
-        "Map download completed successfully"
+        `Download request completed successfully in ${MetricsCalculator.formatDuration(
+          totalControllerTime / 1000
+        )}`
       );
     } catch (error) {
+      const controllerErrorTime = Date.now() - controllerStartTime;
+
       logger.error(
         {
           requestId,
           mapId: map_id,
-          action: "download_map_error",
+          controllerErrorTime: `${controllerErrorTime}ms`,
+          controllerErrorTimeFormatted: MetricsCalculator.formatDuration(
+            controllerErrorTime / 1000
+          ),
           error: error instanceof Error ? error.message : "Unknown error",
+          action: "download_controller_error",
         },
-        "Map download failed"
+        `Download request failed after ${MetricsCalculator.formatDuration(
+          controllerErrorTime / 1000
+        )}`
       );
 
       if (!res.headersSent) {
@@ -281,19 +316,48 @@ export class MapController {
   public uploadMap = async (req: Request, res: Response): Promise<void> => {
     const requestId = req.requestId;
     const file = req.file;
+    const controllerStartTime = Date.now();
+
+    // Log comprehensive request information
+    const requestInfo = {
+      contentType: req.get("Content-Type"),
+      contentLength: req.get("Content-Length"),
+      userAgent: req.get("User-Agent"),
+      acceptEncoding: req.get("Accept-Encoding"),
+      connection: req.get("Connection"),
+      transferEncoding: req.get("Transfer-Encoding"),
+    };
 
     logger.info(
       {
         requestId,
-        action: "upload_map_start",
+        action: "upload_controller_start",
         originalName: file?.originalname,
         fileSize: file?.size,
+        fileSizeFormatted: file?.size
+          ? MetricsCalculator.formatFileSize(file.size)
+          : undefined,
+        requestInfo,
       },
-      "Starting map upload"
+      `Starting upload request: ${file?.originalname || "unknown"} (${
+        file?.size
+          ? MetricsCalculator.formatFileSize(file.size)
+          : "unknown size"
+      })`
     );
 
     try {
       if (!file) {
+        const errorTime = Date.now() - controllerStartTime;
+        logger.warn(
+          {
+            requestId,
+            errorTime: `${errorTime}ms`,
+            action: "upload_controller_no_file",
+          },
+          "Upload request rejected: No file provided"
+        );
+
         res.status(400).json({
           error: "No file provided",
           requestId,
@@ -304,8 +368,23 @@ export class MapController {
       // Extract optional metadata from request body
       const { name, description, version } = req.body;
 
-      // Validate file type
+      // Enhanced file validation logging
+      const validationStartTime = Date.now();
+
       if (!file.originalname.toLowerCase().endsWith(".mbtiles")) {
+        const validationTime = Date.now() - validationStartTime;
+        logger.warn(
+          {
+            requestId,
+            originalName: file.originalname,
+            fileSize: file.size,
+            fileSizeFormatted: MetricsCalculator.formatFileSize(file.size),
+            validationTime: `${validationTime}ms`,
+            action: "upload_controller_invalid_type",
+          },
+          `Upload request rejected: Invalid file type - ${file.originalname}`
+        );
+
         res.status(400).json({
           error: "Invalid file type. Only .mbtiles files are supported.",
           requestId,
@@ -313,7 +392,22 @@ export class MapController {
         return;
       }
 
-      // Save the uploaded map
+      const validationTime = Date.now() - validationStartTime;
+      logger.info(
+        {
+          requestId,
+          originalName: file.originalname,
+          fileSize: file.size,
+          fileSizeFormatted: MetricsCalculator.formatFileSize(file.size),
+          validationTime: `${validationTime}ms`,
+          providedMetadata: { name, description, version },
+          action: "upload_controller_validated",
+        },
+        `File validation passed in ${validationTime}ms`
+      );
+
+      // Process upload with service
+      const serviceStartTime = Date.now();
       const metadata = await this.mapService.saveUploadedMap(
         file.buffer,
         file.originalname,
@@ -322,37 +416,88 @@ export class MapController {
         version,
         requestId
       );
+      const serviceTime = Date.now() - serviceStartTime;
+
+      const controllerEndTime = Date.now();
+      const totalControllerTime = controllerEndTime - controllerStartTime;
+      const processingSpeed =
+        file.size / (1024 * 1024) / (totalControllerTime / 1000);
 
       logger.info(
         {
           requestId,
           mapId: metadata.mapId,
+          originalName: file.originalname,
           fileSize: file.size,
-          action: "upload_map_success",
+          fileSizeFormatted: MetricsCalculator.formatFileSize(file.size),
+          serviceTime: `${serviceTime}ms`,
+          serviceTimeFormatted: MetricsCalculator.formatDuration(
+            serviceTime / 1000
+          ),
+          totalControllerTime: `${totalControllerTime}ms`,
+          totalControllerTimeFormatted: MetricsCalculator.formatDuration(
+            totalControllerTime / 1000
+          ),
+          processingSpeed: MetricsCalculator.formatSpeed(processingSpeed),
+          resultingChecksum: metadata.checksum?.substring(0, 8), // First 8 chars
+          timing: {
+            validation: `${validationTime}ms`,
+            service: `${serviceTime}ms`,
+            total: `${totalControllerTime}ms`,
+          },
+          action: "upload_controller_success",
         },
-        "Map upload completed successfully"
+        `Upload completed successfully: ${MetricsCalculator.formatFileSize(
+          file.size
+        )} processed in ${MetricsCalculator.formatDuration(
+          totalControllerTime / 1000
+        )} at ${MetricsCalculator.formatSpeed(processingSpeed)}`
       );
 
       res.status(201).json({
         message: "Map uploaded successfully",
         mapId: metadata.mapId,
         metadata,
+        performance: {
+          totalTime: `${totalControllerTime}ms`,
+          processingSpeed: MetricsCalculator.formatSpeed(processingSpeed),
+          fileSize: MetricsCalculator.formatFileSize(file.size),
+        },
         requestId,
       });
     } catch (error) {
+      const controllerErrorTime = Date.now() - controllerStartTime;
+
       logger.error(
         {
           requestId,
           originalName: file?.originalname,
+          fileSize: file?.size,
+          fileSizeFormatted: file?.size
+            ? MetricsCalculator.formatFileSize(file.size)
+            : undefined,
+          controllerErrorTime: `${controllerErrorTime}ms`,
+          controllerErrorTimeFormatted: MetricsCalculator.formatDuration(
+            controllerErrorTime / 1000
+          ),
           error: error instanceof Error ? error.message : "Unknown error",
-          action: "upload_map_error",
+          errorStack: error instanceof Error ? error.stack : undefined,
+          action: "upload_controller_error",
         },
-        "Map upload failed"
+        `Upload failed after ${MetricsCalculator.formatDuration(
+          controllerErrorTime / 1000
+        )}: ${error instanceof Error ? error.message : "Unknown error"}`
       );
 
       res.status(500).json({
         error: "Failed to upload map",
         details: error instanceof Error ? error.message : "Unknown error",
+        performance: {
+          timeBeforeError: `${controllerErrorTime}ms`,
+          fileSize: file?.size
+            ? MetricsCalculator.formatFileSize(file.size)
+            : undefined,
+        },
         requestId,
       });
     }

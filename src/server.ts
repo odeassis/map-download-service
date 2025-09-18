@@ -68,8 +68,7 @@ app.get("/", (req: Request, res: Response) => {
   res.status(200).json({
     service: "Map Download Service API",
     version: "1.0.0",
-    description:
-      "A comprehensive API for managing and serving map files in MBTiles format",
+    description: "A API for managing and serving map files in MBTiles format",
     endpoints: {
       documentation: "/api-docs",
       swagger_json: "/swagger.json",
